@@ -1,17 +1,16 @@
-
 #include <Keypad.h>
 #include <Servo.h>
-#include <string.h>
 
-// Keypad layout
+Servo doorLock;
+
 const byte ROWS = 4;
 const byte COLS = 4;
 
 char keys[ROWS][COLS] = {
-  {'1', '2', '3', 'A'},
-  {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
 };
 
 byte rowPins[ROWS] = {2, 3, 4, 5};
@@ -21,70 +20,44 @@ Keypad keypad = Keypad(
   makeKeymap(keys), rowPins, colPins, ROWS, COLS
 );
 
-Servo lockServo;
-
-const int servoPin = 10;
-const int lockedAngle = 0;
-const int unlockedAngle = 90;
-
-const char correctPassword[] = "1234";
-char enteredPassword[5];
-byte passwordIndex = 0;
-
-void clearPassword() {
-  passwordIndex = 0;
-  enteredPassword[0] = '\0';
-}
+String password = "1234";
+String enteredPassword = "";
 
 void setup() {
   Serial.begin(9600);
 
-  lockServo.attach(servoPin);
-  lockServo.write(lockedAngle);
+  doorLock.attach(10);
+  doorLock.write(0);  // Door locked
 
-  clearPassword();
-
-  Serial.println("Smart Door Lock Ready");
-  Serial.println("Enter password, then press #");
+  Serial.println("Smart Door Lock System");
+  Serial.println("Enter password:");
 }
 
 void loop() {
   char key = keypad.getKey();
 
-  if (key == NO_KEY) {
-    return;
-  }
+  if (key) {
+    if (key == '#') {
+      if (enteredPassword == password) {
+        Serial.println("Access Granted");
+        doorLock.write(90);  // Unlock door
+        delay(5000);
+        doorLock.write(0);   // Lock door again
+        Serial.println("Door Locked");
+      } else {
+        Serial.println("Wrong Password!");
+      }
 
-  if (key == '*') {
-    clearPassword();
-    Serial.println("Password cleared");
-    return;
-  }
-
-  if (key == '#') {
-    if (strcmp(enteredPassword, correctPassword) == 0) {
-      Serial.println("Access Granted");
-
-      lockServo.write(unlockedAngle);
-      delay(5000);
-
-      lockServo.write(lockedAngle);
-      Serial.println("Door locked again");
-    } else {
-      Serial.println("Access Denied");
+      enteredPassword = "";
+      Serial.println("Enter password:");
     }
-
-    clearPassword();
-    Serial.println("Enter password, then press #");
-    return;
-  }
-
-  // Accept digits only; limit input to 4 characters.
-  if (key >= '0' && key <= '9' && passwordIndex < 4) {
-    enteredPassword[passwordIndex] = key;
-    passwordIndex++;
-    enteredPassword[passwordIndex] = '\0';
-
-    Serial.println("Digit entered");
+    else if (key == '*') {
+      enteredPassword = "";
+      Serial.println("Password Cleared");
+    }
+    else {
+      enteredPassword += key;
+      Serial.println("Key Pressed");
+    }
   }
 }
